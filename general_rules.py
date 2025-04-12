@@ -135,27 +135,18 @@ def no_pitch_repeats(cantus_obj: Cantus, max_repeats=3) -> bool:
 
     return True
 
-def has_no_repeating_pattern(cantus_obj: Cantus) -> bool:
-    """
-    Проверяет, что в мелодии нет повторяющихся подряд паттернов из разных нот."""
-    intervals = cantus_obj.intervals
-    n = len(intervals)
-    for pattern_len in range(1, n // 2 + 1):
-        for i in range(n - 2 * pattern_len + 1):
-            pattern = intervals[i:i + pattern_len]
-            next_segment = intervals[i + pattern_len:i + 2 * pattern_len]
-            if pattern == next_segment and len(set(pattern)) > 1:
-                return False
-    return True
-
-def has_no_trill(cantus_obj: Cantus) -> bool:
-    """Проверяет, что в списке высот нет трелеобразных фрагментов (шаблон a, b, a, b)."""
+def has_no_pattern(cantus_obj: Cantus) -> bool:
+    """Проверяет, что в списке высот нет повторяющихся фрагментов вида a, b, ..., a, b, ..."""
     pitches = cantus_obj.pitches
-    for i in range(len(pitches) - 3):
-        a, b, c, d = pitches[i], pitches[i + 1], pitches[i + 2], pitches[i + 3]
-        if a == c and b == d:
-            return False  # Найден шаблон a, b, a, b
-    return True  # Трелеобразных фрагментов нет
+    max_pattern_length = len(pitches) // 2  # Максимальная длина паттерна
+    for pattern_len in range(1, max_pattern_length + 1):
+        for i in range(len(pitches) - 2 * pattern_len + 1):
+            pattern1 = pitches[i:i + pattern_len]
+            pattern2 = pitches[i + pattern_len:i + 2 * pattern_len]
+            if pattern1 == pattern2:
+                return False  # Найден повторяющийся шаблон
+    return True  # Повторяющихся фрагментов не найдено
+
 
 def seventh_rule_satisfied(cantus_obj: Cantus) -> bool:
     """
@@ -177,8 +168,7 @@ def is_valid_melody(cantus_obj: Cantus) -> bool:
                check_culmination_rule(cantus_obj), 
                check_direction_changes(cantus_obj), 
                no_pitch_repeats(cantus_obj),
-               has_no_repeating_pattern(cantus_obj),
-               has_no_trill(cantus_obj),
+               has_no_pattern(cantus_obj),
                seventh_rule_satisfied(cantus_obj),
                check_major_forbidden_leaps(cantus_obj)])
 
