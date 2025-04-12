@@ -108,7 +108,7 @@ def check_direction_changes(cantus_obj: Cantus) -> bool:
     extremes = cantus_obj.extremes
     return len(extremes) >= 4
 
-def no_pitch_repeats(cantus_obj: Cantus, max_repeats=3) -> bool:
+def no_pitch_repeats(cantus_obj: Cantus, max_repeats=4) -> bool:
     '''Проверяет, что высоты нот (pitch) не повторяются слишком часто.
 
     Условия:
@@ -147,6 +147,14 @@ def has_no_pattern(cantus_obj: Cantus) -> bool:
                 return False  # Найден повторяющийся шаблон
     return True  # Повторяющихся фрагментов не найдено
 
+def has_no_repeated_degrees(cantus_obj: Cantus) -> bool:
+    """Проверяет, что в списке ступеней нет повторяющихся более двух раз подряд."""
+    degrees = cantus_obj.degrees
+    for i in range(len(degrees) - 3):
+        if degrees[i] == degrees[i + 1] == degrees[i + 2]:
+            return False  # Найдено повторение более двух раз подряд
+    return True
+
 
 def seventh_rule_satisfied(cantus_obj: Cantus) -> bool:
     """
@@ -169,6 +177,7 @@ def is_valid_melody(cantus_obj: Cantus) -> bool:
                check_direction_changes(cantus_obj), 
                no_pitch_repeats(cantus_obj),
                has_no_pattern(cantus_obj),
+               has_no_repeated_degrees(cantus_obj),
                seventh_rule_satisfied(cantus_obj),
                check_major_forbidden_leaps(cantus_obj)])
 
