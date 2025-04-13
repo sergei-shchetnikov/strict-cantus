@@ -168,6 +168,29 @@ def seventh_rule_satisfied(cantus_obj: Cantus) -> bool:
                 return False
     return True
 
+def is_leading_tone_correct(cantus_obj: Cantus) -> bool:
+    """
+    Проверяет, что вводный тон (6) используется только в определенных конфигурациях.
+    """
+    degrees = cantus_obj.degrees
+    allowed_configs = [
+        (0, 6, 0),
+        (0, 6, 5),
+        (5, 6, 0)
+    ]
+
+    for i in range(len(degrees)):
+        if degrees[i] == 6:
+            found = False
+            for config in allowed_configs:
+                if i >= 1 and i + 1 < len(degrees):
+                    if (degrees[i - 1], degrees[i], degrees[i + 1]) == config:
+                        found = True
+                        break
+            if not found:
+                return False
+    return True
+
 def is_valid_melody(cantus_obj: Cantus) -> bool:
     return all([has_range_valid(cantus_obj), 
                has_stepwise_final(cantus_obj), 
@@ -179,6 +202,7 @@ def is_valid_melody(cantus_obj: Cantus) -> bool:
                has_no_pattern(cantus_obj),
                has_no_repeated_degrees(cantus_obj),
                seventh_rule_satisfied(cantus_obj),
+               is_leading_tone_correct(cantus_obj),
                check_major_forbidden_leaps(cantus_obj)])
 
 
