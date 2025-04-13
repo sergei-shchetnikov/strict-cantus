@@ -191,6 +191,11 @@ def is_leading_tone_correct(cantus_obj: Cantus) -> bool:
                 return False
     return True
 
+def has_no_two_leaps_at_start(cantus_obj: Cantus) -> bool:
+    """Проверяет, что мелодия не начинается с двух скачков подряд."""
+    intervals = cantus_obj.intervals
+    return not (abs(intervals[0]) >= 3 and abs(intervals[1]) >=3 )  # Проверяем первые два интервала
+
 def is_valid_melody(cantus_obj: Cantus) -> bool:
     return all([has_range_valid(cantus_obj), 
                has_stepwise_final(cantus_obj), 
@@ -203,6 +208,7 @@ def is_valid_melody(cantus_obj: Cantus) -> bool:
                has_no_repeated_degrees(cantus_obj),
                seventh_rule_satisfied(cantus_obj),
                is_leading_tone_correct(cantus_obj),
+                has_no_two_leaps_at_start(cantus_obj),
                check_major_forbidden_leaps(cantus_obj)])
 
 
