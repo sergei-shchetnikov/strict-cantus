@@ -1,7 +1,9 @@
 import sqlite3
 from itertools import combinations_with_replacement, permutations
+from multiprocessing import Pool
+from functools import lru_cache
 from converter import intervals_to_melody
-from music21 import stream, meter,tempo, note, bar, clef
+from music21 import stream, meter, tempo, note, bar, clef
 from general_rules import is_valid_melody
 from cantus import Cantus
 
@@ -11,28 +13,55 @@ STEP_COUNT_THRESHOLD = 4  # минимальное количество пост
 DB_PATH = f"melodies_{MELODY_LENGTH}_{STEP_COUNT_THRESHOLD}.db"  # путь к файлу базы данных
 
 def generate_combinations():
-    elements = [-7, -4, -3, -2, -1, 1, 2, 3, 4, 5, 7]
-    return [combo for combo in combinations_with_replacement(elements, MELODY_LENGTH - 1) if sum(combo) == 0]
+    elements = frozenset([-7, -4, -3, -2, -1, 1, 2, 3, 4, 5, 7])
+    valid_combos = set()
+    
+    # Предварительная фильтрация для уменьшения числа комбинаций
+    for combo in combinations_with_replacement(elements, MELODY_LENGTH - 1):
+        if sum(combo) == 0 and combo.count(1) + combo.count(-1) >= STEP_COUNT_THRESHOLD:
+            valid_combos.add(tuple(combo))
+            
+    return valid_combos
 
 def filter_combinations(combinations):
-    return [combo for combo in combinations if combo.count(1) + combo.count(-1) >= STEP_COUNT_THRESHOLD]
+    # Функция теперь не нужна, фильтрация происходит в generate_combinations
+    return combinations
+
+@lru_cache(maxsize=1024)
+def check_ending_steps(perm):
+    return perm[-1] in {1, -1} and perm[-2] in {1, -1}
+
+def process_combo(combo):
+    local_valid = set()
+    for perm in set(permutations(combo)):
+        if check_ending_steps(perm):
+            local_valid.add(perm)
+    return local_valid
+
+def process_perm(taneyev_intervals):
+    cantus = Cantus(list(taneyev_intervals))
+    if is_valid_melody(cantus):
+        return cantus.intervals
+    return None
 
 def generate_valid_permutations(combinations):
     valid_permutations = set()
-    for combo in combinations:
-        for perm in set(permutations(combo)):
-            if perm[-1] in {1, -1} and perm[-2] in {1, -1}:
-                valid_permutations.add(perm)
+    
+    # Параллельная обработка комбинаций
+    with Pool() as pool:
+        results = pool.map(process_combo, combinations)
+    
+    for result in results:
+        valid_permutations.update(result)
+    
     return list(valid_permutations)
 
 def generate_valid_melodies(permutations):
-    valid_melodies = []
-    for taneyev_intervals in permutations:
-        cantus = Cantus(list(taneyev_intervals))
-        if is_valid_melody(cantus):
-            valid_melodies.append(cantus.intervals)
-            
-    return valid_melodies
+    # Параллельная проверка мелодий
+    with Pool() as pool:
+        melodies = pool.map(process_perm, permutations)
+    
+    return [m for m in melodies if m is not None]
 
 def generate_full_score(valid_melodies):
     full_score = stream.Stream()
@@ -88,7 +117,7 @@ def main():
     valid_melodies = generate_valid_melodies(valid_permutations)
 
     print(f"Сгенерировано {len(valid_melodies)} валидных мелодий.")
-    generate_full_score(valid_melodies)
+    # generate_full_score(valid_melodies)
     # save_melodies_to_db(valid_melodies)
     print("Генерация завершена.")
 
