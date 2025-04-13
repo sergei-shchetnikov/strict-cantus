@@ -6,25 +6,19 @@ from converter import intervals_to_melody
 from music21 import stream, meter, tempo, note, bar, clef
 from general_rules import is_valid_melody
 from cantus import Cantus
+import argparse
 
-# Настраиваемые параметры
-MELODY_LENGTH = 8  # длина мелодии
-STEP_COUNT_THRESHOLD = 4  # минимальное количество поступенных ходов (1 и -1)
-DB_PATH = f"melodies_{MELODY_LENGTH}_{STEP_COUNT_THRESHOLD}.db"  # путь к файлу базы данных
-
-def generate_combinations():
-    elements = frozenset([-7, -4, -3, -2, -1, 1, 2, 3, 4, 5, 7])
+def generate_combinations(elements, melody_length, step_count_threshold):
     valid_combos = set()
     
     # Предварительная фильтрация для уменьшения числа комбинаций
-    for combo in combinations_with_replacement(elements, MELODY_LENGTH - 1):
-        if sum(combo) == 0 and combo.count(1) + combo.count(-1) >= STEP_COUNT_THRESHOLD:
+    for combo in combinations_with_replacement(elements, melody_length - 1):
+        if sum(combo) == 0 and combo.count(1) + combo.count(-1) >= step_count_threshold:
             valid_combos.add(tuple(combo))
             
     return valid_combos
 
 def filter_combinations(combinations):
-    # Функция теперь не нужна, фильтрация происходит в generate_combinations
     return combinations
 
 @lru_cache(maxsize=1024)
@@ -47,7 +41,6 @@ def process_perm(taneyev_intervals):
 def generate_valid_permutations(combinations):
     valid_permutations = set()
     
-    # Параллельная обработка комбинаций
     with Pool() as pool:
         results = pool.map(process_combo, combinations)
     
@@ -57,15 +50,14 @@ def generate_valid_permutations(combinations):
     return list(valid_permutations)
 
 def generate_valid_melodies(permutations):
-    # Параллельная проверка мелодий
     with Pool() as pool:
         melodies = pool.map(process_perm, permutations)
     
     return [m for m in melodies if m is not None]
 
-def generate_full_score(valid_melodies):
+def generate_full_score(valid_melodies, melody_length):
     full_score = stream.Stream()
-    full_score.append(meter.TimeSignature(f"{MELODY_LENGTH}/1"))
+    full_score.append(meter.TimeSignature(f"{melody_length}/1"))
     
     tempo_mark = tempo.MetronomeMark(number=140)
     tempo_mark.referent = note.Note(type="half")
@@ -77,21 +69,20 @@ def generate_full_score(valid_melodies):
 
     full_score.makeMeasures(inPlace=True)
 
-    previous_clef = None  # здесь будем хранить предыдущий "bestClef"
+    previous_clef = None
 
     for m in full_score.getElementsByClass('Measure'):
         m.rightBarline = bar.Barline('final')
 
         best = clef.bestClef(m)
         if best is not None:
-            # Только если clef отличается от предыдущего
             if previous_clef is None or best.sign != previous_clef.sign or best.line != previous_clef.line:
                 m.insert(0.0, best)
                 previous_clef = best
 
     full_score.show()
 
-def save_melodies_to_db(melodies, db_path=DB_PATH):
+def save_melodies_to_db(melodies, db_path):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
     
@@ -111,14 +102,32 @@ def save_melodies_to_db(melodies, db_path=DB_PATH):
     print(f"{len(melodies)} мелодий сохранено в базу данных '{db_path}'.")
 
 def main():
-    combinations = generate_combinations()
+    parser = argparse.ArgumentParser(description='Генератор мелодий по правилам Танеева.')
+    parser.add_argument('--save', action='store_true', help='Сохранить мелодии в базу данных')
+    parser.add_argument('--show', action='store_true', help='Показать full_score')
+    parser.add_argument('--melody_length', type=int, default=8, help='Длина мелодии (по умолчанию: 8)')
+    parser.add_argument('--step_threshold', type=int, default=4, help='Минимальное количество поступенных ходов (по умолчанию: 4)')
+    args = parser.parse_args()
+
+    # Настраиваемые параметры
+    MELODY_LENGTH = args.melody_length
+    STEP_COUNT_THRESHOLD = args.step_threshold
+    DB_PATH = f"melodies_{MELODY_LENGTH}_{STEP_COUNT_THRESHOLD}.db"
+
+    elements = frozenset([-7, -4, -3, -2, -1, 1, 2, 3, 4, 5, 7])
+    combinations = generate_combinations(elements, MELODY_LENGTH, STEP_COUNT_THRESHOLD)
     filtered_combinations = filter_combinations(combinations)
     valid_permutations = generate_valid_permutations(filtered_combinations)
     valid_melodies = generate_valid_melodies(valid_permutations)
 
     print(f"Сгенерировано {len(valid_melodies)} валидных мелодий.")
-    # generate_full_score(valid_melodies)
-    # save_melodies_to_db(valid_melodies)
+
+    if args.show:
+        generate_full_score(valid_melodies, MELODY_LENGTH)
+    
+    if args.save:
+        save_melodies_to_db(valid_melodies, DB_PATH)
+    
     print("Генерация завершена.")
 
 if __name__ == "__main__":
