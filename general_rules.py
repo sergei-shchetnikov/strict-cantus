@@ -201,6 +201,15 @@ def has_no_sixth_or_octave_at_start(cantus_obj: Cantus) -> bool:
     intervals = cantus_obj.intervals
     return not (intervals[0] in {-7, 5, 7})  # Проверяем первый интервал
 
+def is_octave_prepared_or_followed_by_leap(cantus_obj: Cantus) -> bool:
+    """Проверяет, что скачок на октаву (7) либо подготовлен либо продолжается скачком."""
+    intervals = cantus_obj.intervals
+    for i in range(len(intervals) - 1):
+        if abs(intervals[i]) == 7:
+            if abs(intervals[i - 1]) < 3 and abs(intervals[i + 1]) < 3:
+                return False
+    return True
+
 def is_valid_melody(cantus_obj: Cantus) -> bool:
     return all([has_range_valid(cantus_obj), 
                has_stepwise_final(cantus_obj), 
@@ -215,6 +224,7 @@ def is_valid_melody(cantus_obj: Cantus) -> bool:
                is_leading_tone_correct(cantus_obj),
                 has_no_two_leaps_at_start(cantus_obj),
                 has_no_sixth_or_octave_at_start(cantus_obj),
+                is_octave_prepared_or_followed_by_leap(cantus_obj),
                check_major_forbidden_leaps(cantus_obj)])
 
 

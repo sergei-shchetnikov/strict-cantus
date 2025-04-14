@@ -1,4 +1,5 @@
 import sqlite3
+import argparse
 from itertools import combinations_with_replacement, permutations
 from multiprocessing import Pool
 from functools import lru_cache
@@ -6,7 +7,6 @@ from converter import intervals_to_melody
 from music21 import stream, meter, tempo, note, bar, clef
 from general_rules import is_valid_melody
 from cantus import Cantus
-import argparse
 
 def generate_combinations(elements, melody_length, step_count_threshold):
     valid_combos = set()
