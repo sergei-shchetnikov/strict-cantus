@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import List
+from converter import intervals_to_melody
 
 @dataclass
 class Cantus:
@@ -30,7 +31,21 @@ class Cantus:
     @property
     def length(self):
         """Возвращает длину мелодии - количество нот."""
-        return len(self.intervals) + 1
+        return len(self.intervals) + 1    
+
+    def notes_string(self, mode: str) -> str:
+        """Возвращает строку нот мелодии в до мажоре или ля миноре."""
+        if mode == 'major':
+            melody = intervals_to_melody(self.intervals, 'C', 1)
+        elif mode == 'minor':
+            melody = intervals_to_melody(self.intervals, 'a', 1)
+        else:
+            raise ValueError("Mode must be either 'major' or 'minor'")
+        
+        notes = []
+        for note in melody.notes:
+            notes.append(note.nameWithOctave)
+        return ' '.join(notes)
     
     @property
     def range(self):
